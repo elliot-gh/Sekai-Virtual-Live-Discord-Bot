@@ -461,15 +461,15 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
     }
 
     async sendNewLivesMessage(newVlivesInRegion: RegionToNew): Promise<void> {
-        if (this.config!.newLivesChannel === null || this.config!.newLivesChannel.trim().length === 0) {
+        if (SekaiVirtualLiveBot.instance.config!.newLivesChannel === null || SekaiVirtualLiveBot.instance.config!.newLivesChannel.trim().length === 0) {
             return;
         }
 
         console.log("[SekaiVirtualLiveBot] sendNewLivesMessage()");
 
         let msg: string | null = null;
-        if (this.config!.newMessageContent !== null && this.config!.newMessageContent.trim().length > 0) {
-            msg = this.config!.newMessageContent;
+        if (SekaiVirtualLiveBot.instance.config!.newMessageContent !== null && SekaiVirtualLiveBot.instance.config!.newMessageContent.trim().length > 0) {
+            msg = SekaiVirtualLiveBot.instance.config!.newMessageContent;
         }
 
         let description = "";
@@ -509,7 +509,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             .setDescription(description)
             .setColor(0x137A7F);
 
-        const channel = this.client!.channels.cache.get(this.config!.newLivesChannel) as TextChannel;
+        const channel = SekaiVirtualLiveBot.instance.client!.channels.cache.get(SekaiVirtualLiveBot.instance.config!.newLivesChannel) as TextChannel;
         const newMsgOptions: MessageCreateOptions = {
             embeds: [embed],
             components: btnRows
