@@ -273,7 +273,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
 
         const modal = new ModalBuilder()
             .setCustomId(`${SekaiVirtualLiveBot.SCHEDULE_MODAL_PREFIX}${serializedStr}`)
-            .setTitle(`Creating reminder for ${vlive.name}`)
+            .setTitle("Creating new Virtual Live reminder")
             .addComponents(row);
 
         await interaction.showModal(modal);
