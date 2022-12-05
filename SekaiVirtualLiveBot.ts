@@ -535,7 +535,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
     }
 
     async refreshVirtualLive(region: string | null = null): Promise<void> {
-        const newObj = await this.cache!.refreshCache(region);
+        const newObj = await SekaiVirtualLiveBot.instance.cache!.refreshCache(region);
         if (newObj.newFound) {
             await this.sendNewLivesMessage(newObj);
         }
