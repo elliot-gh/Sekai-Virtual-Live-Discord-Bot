@@ -549,7 +549,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
 
             const data = job.attrs.data as ReminderJobData;
             const embed = await SekaiVirtualLiveBot.instance.buildReminderEmbed(
-                `${this.REMINDER_TYPE_TITLE} triggered`, job.attrs.lastRunAt, data, 0xFFFFFF);
+                `${SekaiVirtualLiveBot.instance.REMINDER_TYPE_TITLE} triggered`, job.attrs.lastRunAt, data, 0xFFFFFF);
             const channel = await SekaiVirtualLiveBot.instance.client!.channels.fetch(data.channelId);
             const user = await SekaiVirtualLiveBot.instance.client!.users.fetch(data.userId);
             if (channel === null || !channel.isTextBased()) {
