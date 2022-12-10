@@ -43,6 +43,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
     BTN_REM_DEL_CANCEL_PREFIX = "SekaiVliveBot_btnDeleteCancel__";
     REMINDER_TYPE = "Virtual Live reminder";
     REMINDER_TYPE_TITLE = "Virtual Live Reminder";
+    REMINDER_TRIGGERED_TITLE = "Upcoming Virtual Live Starting Soon";
     client: Client | null = null;
     agenda: Agenda | null = null;
 
@@ -207,7 +208,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             return;
         }
 
-        const description = `Reminder for Sekai Virtual Live show:\n${vlive.name}\n\nStarting at: ${SekaiVirtualLiveBot.createDiscordTimestamp(schedule.startAt, TimestampStyles.LongDateTime)}`;
+        const description = `Reminder for Sekai Virtual Live show:\n${vlive.name}\n\nVirtual Live starts at: ${SekaiVirtualLiveBot.createDiscordTimestamp(schedule.startAt, TimestampStyles.LongDateTime)}`;
         const jobData: ReminderJobData = {
             userId: interaction.user.id,
             channelId: interaction.channelId!,
@@ -325,12 +326,17 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             }
         }
 
-        const sortedVlives = this.cache!.getSortedVlives(region)!;
+        const currentDate = new Date();
+        let sortedVlives = this.cache!.getSortedVlives(region)!;
+        sortedVlives = SekaiVirtualLiveBot.removePastVlives(currentDate, sortedVlives);
         let selectedVlive: VirtualLive;
         if (currentId === null || this.cache!.getVliveById(region, currentId) === null) {
             selectedVlive = sortedVlives[0];
         } else {
             selectedVlive = this.cache!.getVliveById(region, currentId)!;
+            if (selectedVlive.endAt < currentDate) {
+                selectedVlive = sortedVlives[0];
+            }
         }
 
         const vliveEmbed = new EmbedBuilder()
@@ -344,7 +350,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
 
         const btnCreate = new ButtonBuilder()
             .setCustomId(`${SekaiVirtualLiveBot.VLIVE_BTN_VIEW_SCHEDULE_PREFIX}${selectedVlive.id}`)
-            .setLabel("View schedules")
+            .setLabel("View Schedules")
             .setStyle(ButtonStyle.Primary);
         const buttonRow = new ActionRowBuilder().addComponents(btnCreate) as ActionRowBuilder<ButtonBuilder>;
 
@@ -386,19 +392,25 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             }
         }
 
-        const sortedSchedules = this.cache!.getSortedSchedules(region, vliveId)!;
+        const currentDate = new Date();
+        let sortedSchedules = this.cache!.getSortedSchedules(region, vliveId)!;
+        sortedSchedules = SekaiVirtualLiveBot.removePastSchedules(currentDate, sortedSchedules);
         let selectedSchedule = sortedSchedules[0];
         if (currentScheduleId !== null) {
             selectedSchedule = this.cache!.getScheduleById(region, vliveId, currentScheduleId)!;
+            if (selectedSchedule.startAt < currentDate) {
+                selectedSchedule = sortedSchedules[0];
+            }
         }
         const selectedVlive = this.cache!.getVliveById(region, vliveId)!;
+        const lastSchedule = sortedSchedules[sortedSchedules.length - 1];
 
         const scheduleEmbed = new EmbedBuilder()
             .setTitle(selectedVlive.name)
             .addFields(
                 { name: "Starts at:", value: SekaiVirtualLiveBot.createDiscordTimestamp(selectedSchedule.startAt, TimestampStyles.LongDateTime)},
                 { name: "Ends at:", value: SekaiVirtualLiveBot.createDiscordTimestamp(selectedSchedule.endAt, TimestampStyles.LongDateTime)},
-                { name: "Showing Sequence:", value: `${selectedSchedule.seq} of ${sortedSchedules.length}` },
+                { name: "Showing Sequence:", value: `${selectedSchedule.seq} of ${lastSchedule.seq}` },
                 { name: "Region:", value: region}
             )
             .setColor(0x86CECB);
@@ -549,7 +561,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
 
             const data = job.attrs.data as ReminderJobData;
             const embed = await SekaiVirtualLiveBot.instance.buildReminderEmbed(
-                `${SekaiVirtualLiveBot.instance.REMINDER_TYPE_TITLE} triggered`, job.attrs.lastRunAt, data, 0xFFFFFF);
+                SekaiVirtualLiveBot.instance.REMINDER_TRIGGERED_TITLE, job.attrs.lastRunAt, data, 0xFFFFFF);
             const channel = await SekaiVirtualLiveBot.instance.client!.channels.fetch(data.channelId);
             const user = await SekaiVirtualLiveBot.instance.client!.users.fetch(data.userId);
             if (channel === null || !channel.isTextBased()) {
@@ -568,6 +580,32 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             console.error(errStr);
             job.fail(errStr);
         }
+    }
+
+    static removePastSchedules(currentDate: Date, sortedSchedules: VirtualLiveSchedule[]): VirtualLiveSchedule[] {
+        const newArr: VirtualLiveSchedule[] = [];
+        for (const schedule of sortedSchedules) {
+            if (schedule.startAt < currentDate) {
+                continue;
+            }
+
+            newArr.push(schedule);
+        }
+
+        return newArr;
+    }
+
+    static removePastVlives(currentDate: Date, sortedVlives: VirtualLive[]): VirtualLive[] {
+        const newArr: VirtualLive[] = [];
+        for (const vlive of sortedVlives) {
+            if (vlive.endAt < currentDate) {
+                continue;
+            }
+
+            newArr.push(vlive);
+        }
+
+        return newArr;
     }
 
     static formatRelativeDifference(date: Date): string {
