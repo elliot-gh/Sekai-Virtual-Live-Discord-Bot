@@ -12,7 +12,7 @@ A Discord bot built on [discord.js](https://discord.js.org/) that adds a reminde
 ## Commands
 
 - `/vlive create`: View Virtual Live shows and schedules and create reminderse.
-- `/vlive list-reminders`: Lists all reminders, allowing deletion.
+- `/vlive my-reminders`: Lists all own reminders, allowing deletion.
 
 ## License
 

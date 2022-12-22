@@ -29,7 +29,7 @@ type VliveButtonInfo = {
 
 export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInterface {
     private static readonly SUBCMD_CREATE = "create";
-    private static readonly SUBCMD_LIST = "list-reminders";
+    private static readonly SUBCMD_LIST = "my-reminders";
     private static readonly AGENDA_JOB_REMINDER = "agendaJobVirtualLiveReminder";
     private static readonly AGENDA_JOB_REFRESH = "agendaJobVirtualLiveRefresh";
     private static readonly VLIVE_NEW_BTN_PREFIX = "SekaiVliveBot_newVliveBtn__";
