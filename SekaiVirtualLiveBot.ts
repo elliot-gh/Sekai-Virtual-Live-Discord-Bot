@@ -13,7 +13,7 @@ import { createAgenda } from "../Reminder-Discord-Bot/common/ReminderUtils";
 import { VirtualLive, VirtualLiveSchedule } from "./VirtualLiveInterfaces";
 import { SekaiVirtualLiveConfig } from "./SekaiVirtualLiveConfig";
 import { MongoVirtualLive } from "./MongoVirtualLive";
-import { RegionToNew, VirtualLiveCache } from "./VirtualLiveCache";
+import { RegionToNewVliveCount, VirtualLiveCache } from "./VirtualLiveCache";
 import { ReminderJobData } from "../Reminder-Discord-Bot/common/ReminderJobData";
 
 type ScheduleInfo = {
@@ -22,12 +22,17 @@ type ScheduleInfo = {
     scheduleId: number
 }
 
+type VliveButtonInfo = {
+    region: string,
+    vliveId: number
+};
+
 export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInterface {
     private static readonly SUBCMD_CREATE = "create";
     private static readonly SUBCMD_LIST = "list-reminders";
     private static readonly AGENDA_JOB_REMINDER = "agendaJobVirtualLiveReminder";
     private static readonly AGENDA_JOB_REFRESH = "agendaJobVirtualLiveRefresh";
-    private static readonly VLIVE_NEW_BTN_REGION_PREFIX = "SekaiVliveBot_newVliveBtnRegion_";
+    private static readonly VLIVE_NEW_BTN_PREFIX = "SekaiVliveBot_newVliveBtn__";
     private static readonly VLIVE_SELECT = "SekaiVliveBot_vliveSelect";
     private static readonly VLIVE_BTN_VIEW_SCHEDULE_PREFIX = "SekaiVliveBot_BtnVliveViewSchedules_";
     private static readonly SCHEDULE_SELECT = "SekaiVliveBot_scheduleSelect";
@@ -229,11 +234,11 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             interaction.customId.startsWith(this.BTN_REM_DEL_CANCEL_PREFIX)) {
             console.log(`[SekaiVirtualLiveBot] Got button click: ${interaction.customId}`);
             await this.handleReminderButtonClick(interaction);
-        } else if (interaction.customId.startsWith(SekaiVirtualLiveBot.VLIVE_NEW_BTN_REGION_PREFIX)) {
+        } else if (interaction.customId.startsWith(SekaiVirtualLiveBot.VLIVE_NEW_BTN_PREFIX)) {
             console.log(`[SekaiVirtualLiveBot] Got button click: ${interaction.customId}`);
             await interaction.deferReply({ ephemeral: true });
-            const region = interaction.customId.substring(SekaiVirtualLiveBot.VLIVE_NEW_BTN_REGION_PREFIX.length);
-            await this.showVirtualLives(interaction, region, null);
+            const info = SekaiVirtualLiveBot.deserializeVliveButton(interaction.customId);
+            await this.showVirtualLives(interaction, info.region, info.vliveId);
         } else if (interaction.customId.startsWith(SekaiVirtualLiveBot.VLIVE_BTN_VIEW_SCHEDULE_PREFIX)) {
             console.log(`[SekaiVirtualLiveBot] Got button click: ${interaction.customId}`);
             await interaction.deferReply({ ephemeral: true });
@@ -472,7 +477,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
         return;
     }
 
-    async sendNewLivesMessage(newVlivesInRegion: RegionToNew): Promise<void> {
+    async sendNewLivesMessage(newVlivesInRegion: RegionToNewVliveCount): Promise<void> {
         if (SekaiVirtualLiveBot.instance.config!.newLivesChannel === null || SekaiVirtualLiveBot.instance.config!.newLivesChannel.trim().length === 0) {
             return;
         }
@@ -489,7 +494,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
         let currentRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder();
         for (const region in newVlivesInRegion.regions) {
             const newLives = newVlivesInRegion.regions[region];
-            if (newLives === 0) {
+            if (newLives.newCount === 0 || newLives.vliveId === null) {
                 continue;
             }
 
@@ -501,9 +506,10 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
                 currentRow = new ActionRowBuilder();
             }
 
+            const btnId = SekaiVirtualLiveBot.serializeVliveButton(region, newLives.vliveId);
             currentRow.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`${SekaiVirtualLiveBot.VLIVE_NEW_BTN_REGION_PREFIX}${region}`)
+                    .setCustomId(btnId)
                     .setLabel(region)
                     .setStyle(ButtonStyle.Primary)
             );
@@ -631,6 +637,18 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             region: arr[0],
             vliveId: parseInt(arr[1]),
             scheduleId: parseInt(arr[2])
+        };
+    }
+
+    static serializeVliveButton(region: string, vliveId: number): string {
+        return `${SekaiVirtualLiveBot.VLIVE_NEW_BTN_PREFIX}${region}__${vliveId}`;
+    }
+
+    static deserializeVliveButton(input: string): VliveButtonInfo {
+        const arr = input.split("__");
+        return {
+            region: arr[1],
+            vliveId: parseInt(arr[2])
         };
     }
 }

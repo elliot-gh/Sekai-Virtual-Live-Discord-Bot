@@ -31,12 +31,17 @@ type RegionToUrls = {
     [region: string]: string
 }
 
-export type RegionToNew = {
+export type RegionToNewVliveCount = {
     newFound: boolean,
     regions: {
-        [region: string]: number
+        [region: string]: NewVliveCount
     }
 };
+
+export type NewVliveCount = {
+    newCount: number,
+    vliveId: number | null
+}
 
 export class VirtualLiveCache {
     private idToVlives: IdToVlive;
@@ -96,7 +101,7 @@ export class VirtualLiveCache {
         return this.vliveIdsToSchedules[region][vliveId][scheduleId];
     }
 
-    async refreshCache(onlyRegion: string | null = null): Promise<RegionToNew> {
+    async refreshCache(onlyRegion: string | null = null): Promise<RegionToNewVliveCount> {
         const currentDate = new Date();
         console.log(`[VirtualLiveCache] Started refreshCache() at ${currentDate}`);
 
@@ -107,7 +112,7 @@ export class VirtualLiveCache {
             console.error(`[VirtualLiveCache] Error deleting older virtual lives ${error}`);
         }
 
-        const newVlivesInRegion: RegionToNew = {
+        const newVlivesInRegion: RegionToNewVliveCount = {
             newFound: false,
             regions: {}
         };
@@ -121,7 +126,7 @@ export class VirtualLiveCache {
             try {
                 const updated = await VirtualLiveCache.downloadAndUpsertVirtualLive(region, url, currentDate);
                 newVlivesInRegion.regions[region] = updated;
-                if (updated > 0) {
+                if (updated.newCount > 0) {
                     newVlivesInRegion.newFound = true;
                 }
             } catch (error) {
@@ -162,7 +167,7 @@ export class VirtualLiveCache {
         console.log(`[VirtualLiveCache] updateCacheForRegion() for region ${region} now has ${vlives.length} virtual lives`);
     }
 
-    private static async downloadAndUpsertVirtualLive(region: string, url: string, currentDate: Date): Promise<number> {
+    private static async downloadAndUpsertVirtualLive(region: string, url: string, currentDate: Date): Promise<NewVliveCount> {
         let created = 0;
         let downloaded: VirtualLive[];
         try {
@@ -178,12 +183,22 @@ export class VirtualLiveCache {
             throw error;
         }
 
+        let updated = false;
+        let vliveId: number | null = null;
         for (const vlive of downloaded) {
-            created += await MongoVirtualLive.createOrupdateVirtualLive(region, vlive);
+            const upsertedCount = await MongoVirtualLive.createOrupdateVirtualLive(region, vlive);
+            created += upsertedCount;
+            if (!updated && upsertedCount > 0) {
+                updated = true;
+                vliveId = vlive.id;
+            }
         }
 
         console.log(`[VirtualLiveCache] Created ${created} virtual lives for URL ${url}`);
-        return created;
+        return {
+            newCount: created,
+            vliveId: vliveId
+        };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
