@@ -498,7 +498,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
                 continue;
             }
 
-            const str = `**${region}:** ${newLives} new\n\n`;
+            const str = `**${region}:** ${newLives.newCount} new\n\n`;
             description += str;
 
             if (currentRow.components.length >= 3) {
