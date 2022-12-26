@@ -108,7 +108,6 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
 
             this.agenda.define(SekaiVirtualLiveBot.AGENDA_JOB_REMINDER, this.handleReminderJob);
             this.agenda.define(SekaiVirtualLiveBot.AGENDA_JOB_REFRESH, this.refreshVirtualLiveJob);
-            await this.agenda.start();
             return null;
         } catch (error) {
             const errMsg = `[ReminderBot] Error in init(): ${error}`;
@@ -145,6 +144,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
     }
 
     async useClient(client: Client<boolean>): Promise<void> {
+        await this.agenda!.start();
         void SekaiVirtualLiveBot.instance.agenda!.every(`${SekaiVirtualLiveBot.instance.config!.refreshIntervalHours} hours`, SekaiVirtualLiveBot.AGENDA_JOB_REFRESH);
         this.client = client;
         client.on("interactionCreate", async (interaction) => {
