@@ -48,7 +48,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
     BTN_REM_DEL_CANCEL_PREFIX = "SekaiVliveBot_btnDeleteCancel__";
     REMINDER_TYPE = "Virtual Live reminder";
     REMINDER_TYPE_TITLE = "Virtual Live Reminder";
-    REMINDER_TRIGGERED_TITLE = "Upcoming Virtual Live Starting Soon";
+    REMINDER_TRIGGERED_TITLE = "Project Sekai Virtual Live Starting Soon";
     client: Client | null = null;
     agenda: Agenda | null = null;
 
@@ -213,7 +213,10 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
             return;
         }
 
-        const description = `Reminder for Sekai Virtual Live show:\n${vlive.name}\n\nVirtual Live starts at: ${SekaiVirtualLiveBot.createDiscordTimestamp(schedule.startAt, TimestampStyles.LongDateTime)}`;
+        const description = "Reminder for Virtual Live show:\n" +
+                            `${vlive.name}\n\n` +
+                            `Virtual Live starts at: ${SekaiVirtualLiveBot.createDiscordTimestamp(schedule.startAt, TimestampStyles.LongDateTime)}\n\n` +
+                            `Region: ${scheduleInfo.region}`;
         const jobData: ReminderJobData = {
             userId: interaction.user.id,
             channelId: interaction.channelId!,
