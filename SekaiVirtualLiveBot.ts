@@ -2,9 +2,9 @@
 import Agenda, { Job } from "agenda";
 import { GatewayIntentBits, SlashCommandBuilder, ContextMenuCommandBuilder, CommandInteraction, CacheType,
     Client, ButtonInteraction, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, TextChannel,
-    WebhookEditMessageOptions, StringSelectMenuBuilder, ChatInputCommandInteraction, TimestampStylesString,
+    StringSelectMenuBuilder, ChatInputCommandInteraction, TimestampStylesString,
     TimestampStyles, StringSelectMenuInteraction, MessageCreateOptions, StringSelectMenuOptionBuilder,
-    TextInputBuilder, TextInputStyle, ModalBuilder, ModalSubmitInteraction } from "discord.js";
+    TextInputBuilder, TextInputStyle, ModalBuilder, ModalSubmitInteraction, InteractionUpdateOptions } from "discord.js";
 import moment from "moment";
 import { BotInterface } from "../../BotInterface";
 import { readYamlConfig } from "../../utils/ConfigUtils";
@@ -460,7 +460,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot implements BotInter
         }
 
         const currentPos = this.deserializeListString(interaction.message.embeds[0].title!);
-        let newUpdate: WebhookEditMessageOptions | null = null;
+        let newUpdate: InteractionUpdateOptions | null = null;
         if (interaction.customId === this.BTN_REM_PREV) {
             newUpdate = await this.buildReminderList(interactUser, interaction.guildId!, currentPos - 1);
         } else if (interaction.customId === this.BTN_REM_NEXT) {
