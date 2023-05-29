@@ -3,7 +3,7 @@ import { GatewayIntentBits, SlashCommandBuilder, ContextMenuCommandBuilder, Comm
     Client, ButtonInteraction, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, TextChannel,
     StringSelectMenuBuilder, ChatInputCommandInteraction, TimestampStylesString,
     TimestampStyles, StringSelectMenuInteraction, MessageCreateOptions, StringSelectMenuOptionBuilder,
-    TextInputBuilder, TextInputStyle, ModalBuilder, ModalSubmitInteraction, InteractionUpdateOptions, ColorResolvable, InteractionEditReplyOptions, AutocompleteInteraction } from "discord.js";
+    TextInputBuilder, TextInputStyle, ModalBuilder, ModalSubmitInteraction, InteractionUpdateOptions, ColorResolvable, InteractionEditReplyOptions, AutocompleteInteraction, ApplicationCommandOptionChoiceData } from "discord.js";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import timezone from "dayjs/plugin/timezone";
@@ -750,15 +750,15 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot<VirtualLiveReminder
     }
 
     private async handleAutoComplete(interaction: AutocompleteInteraction): Promise<void> {
-        const query = interaction.options.getString(SekaiVirtualLiveBot.OPT_TZ);
+        let query = interaction.options.getString(SekaiVirtualLiveBot.OPT_TZ);
         // this.logger.info(`Got interaction ${interaction} with query: ${query}`);
         try {
-            if (query === null) {
-                return;
+            if (query === null || query.length === 0) {
+                query = this.timezoneSearchArr[0].name.charAt(0);
             }
 
             const results = this.timezoneFuse.search(query, { limit: 10 });
-            const respondArr = new Array(results.length);
+            const respondArr = new Array<ApplicationCommandOptionChoiceData>(results.length);
             for (let index = 0; index < results.length; index++) {
                 const result = results[index];
                 const value = result.item.name;
