@@ -5,9 +5,8 @@ A Discord bot built on [discord.js](https://discord.js.org/) that adds a reminde
 ## Instructions
 
 1. Please look at [Discord-Bot-Parent](https://github.com/elliot-gh/Discord-Bot-Parent) to setup the main parent project
-2. Clone [Reminder-Discord-Bot](https://github.com/elliot-gh/Reminder-Discord-Bot) as well
-3. Copy `config.example.yaml` as `config.yaml` and edit as appropriate
-4. Run parent
+2. Copy `config.example.yaml` as `config.yaml` and edit as appropriate
+3. Run parent
 
 ## Commands
 

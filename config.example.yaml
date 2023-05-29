@@ -5,29 +5,47 @@
 # 0 means disabled
 refreshIntervalHours: 4
 
-# The channel ID where to send a message if new virtual lives are found
+# Default timezone shown in schedule drop down text if a user has not set their timezone. Does not impact reminder times.
+# Needs to be a TZ identifier; for examples, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+# It would be easier to run `Intl.supportedValuesOf("timeZone")` in node
+# null to use default system timezone
+# defaultTimezone: America/Los_Angeles
+defaultTimezone: null
+
+# The channel IDs where to send a message if new virtual lives are found
 # Must be a string
 # null to disable
-newLivesChannel:
+newLivesChannels: #null
+ - "000000000000000000"
 
-# Text to put in a message notifying of new virtual lives, used in conjunction with newLivesChannel
-# null to disable (only embed)
-newMessageContent:
-
+# A dictionary of server region names to their respective virtual live data
+# vliveDataUrl is a URL to virtualLives.json
+# newMessageContent is the text sent with a new message if new virtual lives are found. can be set to null to disable
+# (hint: roles can be pinged with <@&000000000000000000>, replacing 000000000000000000 with a role ID)
 sekaiServers:
-  English: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-en-diff/main/virtualLives.json"
-  Japanese: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/main/virtualLives.json"
-  # Korean: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-kr-diff/main/virtualLives.json"
-  # Taiwanese: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-tc-diff/main/virtualLives.json"
+  English:
+    vliveDataUrl: ""
+    newMessageContent: New English Virtual Lives found!
+  Japanese:
+    vliveDataUrl: ""
+    newMessageContent: New Japanese Virtual Lives found!
+  Korean:
+    vliveDataUrl: ""
+    newMessageContent: New Korean Virtual Lives found!
+  Taiwanese:
+    vliveDataUrl: ""
+    newMessageContent: New Taiwanese Virtual Lives found!
 
 #  ***** For the url, put %s where your username and password go! *****
 # For example: mongodb+srv://%s:%s@example.com/example?example=example
 # agendaCollection is where the jobs are stored.
 # virtualLiveCollection_prefix is the prefix for where the virtual live and associated data is stored
-#     the suffix is the region defined in sekaiServers
+#     the suffix is the region defined in sekaiServers above
+# userTimezoneCollection is where user timezones are stored
 mongoDb:
   url:
   user:
   password:
   agendaCollection: virtualLiveAgendaCollection
   virtualLiveCollection_prefix: virtualLiveDataCollection_
+  userTimezoneCollection: vliveUserTimezoneCollection

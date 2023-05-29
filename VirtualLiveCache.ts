@@ -1,7 +1,9 @@
 import axios from "axios";
+import { Logger } from "winston";
 import { MongoVirtualLive } from "./MongoVirtualLive";
 import { SekaiVirtualLiveConfig } from "./SekaiVirtualLiveConfig";
 import { VirtualLive, VirtualLiveSchedule } from "./VirtualLiveInterfaces";
+import { createLogger } from "../../utils/Logger";
 
 type IdToVlive = {
     [region: string]: {
@@ -44,6 +46,7 @@ export type NewVliveCount = {
 }
 
 export class VirtualLiveCache {
+    private readonly logger: Logger;
     private idToVlives: IdToVlive;
     private sortedVlives: SortedVlives;
     private vliveIdsToSchedules: VliveIdtoScheduleIds;
@@ -51,11 +54,16 @@ export class VirtualLiveCache {
     private regionToUrls: RegionToUrls;
 
     constructor(config: SekaiVirtualLiveConfig) {
+        this.logger = createLogger("VirtualLiveCache");
         this.idToVlives = {} as IdToVlive;
         this.sortedVlives = {} as SortedVlives;
         this.vliveIdsToSchedules = {} as VliveIdtoScheduleIds;
         this.sortedSchedules = {} as VliveIdToSortedSchedules;
-        this.regionToUrls = config.sekaiServers;
+        this.regionToUrls = {};
+        for (const regionName in config.sekaiServers) {
+            const regionData = config.sekaiServers[regionName];
+            this.regionToUrls[regionName] = regionData.vliveDataUrl;
+        }
 
         for (const region in config.sekaiServers) {
             this.idToVlives[region] = {};
@@ -103,13 +111,13 @@ export class VirtualLiveCache {
 
     async refreshCache(onlyRegion: string | null = null): Promise<RegionToNewVliveCount> {
         const currentDate = new Date();
-        console.log(`[VirtualLiveCache] Started refreshCache() at ${currentDate}`);
+        this.logger.info(`Started refreshCache() at ${currentDate}`);
 
         try {
             const deleted = await MongoVirtualLive.deleteOlderVirtualLive(currentDate);
-            console.log(`[VirtualLiveCache] Deleted ${deleted} virtual lives`);
+            this.logger.info(`Deleted ${deleted} virtual lives`);
         } catch (error) {
-            console.error(`[VirtualLiveCache] Error deleting older virtual lives ${error}`);
+            this.logger.error(`Error deleting older virtual lives ${error}`);
         }
 
         const newVlivesInRegion: RegionToNewVliveCount = {
@@ -122,15 +130,15 @@ export class VirtualLiveCache {
             }
 
             const url = this.regionToUrls[region];
-            console.log(`[VirtualLiveCache] Refreshing region: ${region} from URL: ${url}`);
+            this.logger.info(`Refreshing region: ${region} from URL: ${url}`);
             try {
-                const updated = await VirtualLiveCache.downloadAndUpsertVirtualLive(region, url, currentDate);
+                const updated = await this.downloadAndUpsertVirtualLive(region, url, currentDate);
                 newVlivesInRegion.regions[region] = updated;
                 if (updated.newCount > 0) {
                     newVlivesInRegion.newFound = true;
                 }
             } catch (error) {
-                console.error(`[VirtualLiveCache] Error refreshing region ${region}`);
+                this.logger.error(`Error refreshing region ${region}`);
             }
         }
 
@@ -139,17 +147,17 @@ export class VirtualLiveCache {
         } else {
             await this.syncCacheForRegion(onlyRegion);
         }
-        console.log("[VirtualLiveCache] Finished refreshCache()");
+        this.logger.info("Finished refreshCache()");
         return newVlivesInRegion;
     }
 
     async syncCache(): Promise<void> {
-        console.log(`[VirtualLiveCache] Begin updateCache() at ${new Date()}`);
+        this.logger.info(`Begin updateCache() at ${new Date()}`);
         for (const region in this.regionToUrls) {
-            console.log(`[VirtualLiveCache] updateCache() for region ${region}`);
+            this.logger.info(`updateCache() for region ${region}`);
             await this.syncCacheForRegion(region);
         }
-        console.log("[VirtualLiveCache] Finished updateCache()");
+        this.logger.info("Finished updateCache()");
     }
 
     async syncCacheForRegion(region: string): Promise<void> {
@@ -164,22 +172,22 @@ export class VirtualLiveCache {
                 this.vliveIdsToSchedules[region][vlive.id][schedule.id] = schedule;
             }
         }
-        console.log(`[VirtualLiveCache] updateCacheForRegion() for region ${region} now has ${vlives.length} virtual lives`);
+        this.logger.info(`updateCacheForRegion() for region ${region} now has ${vlives.length} virtual lives`);
     }
 
-    private static async downloadAndUpsertVirtualLive(region: string, url: string, currentDate: Date): Promise<NewVliveCount> {
+    private async downloadAndUpsertVirtualLive(region: string, url: string, currentDate: Date): Promise<NewVliveCount> {
         let created = 0;
         let downloaded: VirtualLive[];
         try {
-            console.log(`[VirtualLiveCache] Downloading virtual live URL ${url}`);
+            this.logger.info(`Downloading virtual live URL ${url}`);
             const response = await axios.get(url, {
                 responseType: "json"
             });
 
             const data = response.data;
-            downloaded = VirtualLiveCache.deserializeVirtualLiveJson(data, currentDate);
+            downloaded = this.deserializeVirtualLiveJson(data, currentDate);
         } catch (error) {
-            console.error(`[VirtualLiveCache] Got error while downloading ${url}: ${error}`);
+            this.logger.error(`Got error while downloading ${url}: ${error}`);
             throw error;
         }
 
@@ -194,7 +202,7 @@ export class VirtualLiveCache {
             }
         }
 
-        console.log(`[VirtualLiveCache] Created ${created} virtual lives for URL ${url}`);
+        this.logger.info(`Created ${created} virtual lives for URL ${url}`);
         return {
             newCount: created,
             vliveId: vliveId
@@ -202,7 +210,7 @@ export class VirtualLiveCache {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private static deserializeVirtualLiveJson(input: any[], currentDate: Date): VirtualLive[] {
+    private deserializeVirtualLiveJson(input: any[], currentDate: Date): VirtualLive[] {
         const vlives: VirtualLive[] = [];
         for (const current of input) {
             try {
@@ -249,7 +257,7 @@ export class VirtualLiveCache {
                     continue;
                 }
 
-                const vliveEnd = this.setEndAt(currentSchedules);
+                const vliveEnd = VirtualLiveCache.setEndAt(currentSchedules);
                 if (vliveEnd < currentDate) {
                     continue;
                 }
@@ -258,12 +266,12 @@ export class VirtualLiveCache {
                     id: current.id,
                     virtualLiveType: current.virtualLiveType,
                     name: current.name,
-                    startAt: this.setStartAt(currentSchedules),
+                    startAt: VirtualLiveCache.setStartAt(currentSchedules),
                     endAt: vliveEnd,
                     virtualLiveSchedules: currentSchedules
                 });
             } catch (error) {
-                console.error(`[VirtualLiveCache] deserializeVirtualLiveJson(): Error on the following JSON:\n${JSON.stringify(current)}`);
+                this.logger.error(`deserializeVirtualLiveJson(): Error on the following JSON:\n${JSON.stringify(current)}`);
                 continue;
             }
         }
