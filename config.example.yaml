@@ -24,17 +24,17 @@ newLivesChannels: #null
 # (hint: roles can be pinged with <@&000000000000000000>, replacing 000000000000000000 with a role ID)
 sekaiServers:
   English:
-    vliveDataUrl: ""
+    vliveDataUrl: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-en-diff/main/virtualLives.json"
     newMessageContent: New English Virtual Lives found!
   Japanese:
-    vliveDataUrl: ""
+    vliveDataUrl: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/main/virtualLives.json"
     newMessageContent: New Japanese Virtual Lives found!
-  Korean:
-    vliveDataUrl: ""
-    newMessageContent: New Korean Virtual Lives found!
-  Taiwanese:
-    vliveDataUrl: ""
-    newMessageContent: New Taiwanese Virtual Lives found!
+  # Korean:
+  #   vliveDataUrl: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-kr-diff/main/virtualLives.json"
+  #   newMessageContent: New Korean Virtual Lives found!
+  # Taiwanese:
+  #   vliveDataUrl: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-tc-diff/main/virtualLives.json"
+  #   newMessageContent: New Taiwanese Virtual Lives found!
 
 #  ***** For the url, put %s where your username and password go! *****
 # For example: mongodb+srv://%s:%s@example.com/example?example=example
