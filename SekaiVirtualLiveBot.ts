@@ -3,7 +3,7 @@ import { GatewayIntentBits, SlashCommandBuilder, ContextMenuCommandBuilder, Comm
     Client, ButtonInteraction, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, TextChannel,
     StringSelectMenuBuilder, ChatInputCommandInteraction, TimestampStylesString,
     TimestampStyles, StringSelectMenuInteraction, MessageCreateOptions, StringSelectMenuOptionBuilder,
-    TextInputBuilder, TextInputStyle, ModalBuilder, ModalSubmitInteraction, InteractionUpdateOptions, ColorResolvable, InteractionEditReplyOptions, AutocompleteInteraction, ApplicationCommandOptionChoiceData } from "discord.js";
+    TextInputBuilder, TextInputStyle, ModalBuilder, ModalSubmitInteraction, InteractionUpdateOptions, ColorResolvable, InteractionEditReplyOptions, AutocompleteInteraction } from "discord.js";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import timezone from "dayjs/plugin/timezone";
@@ -716,6 +716,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot<VirtualLiveReminder
         await interaction.deferReply({ ephemeral: true });
         try {
             const result = await MongoVirtualLive.createOrUpdateUserTimezone(interaction.user.id, timezoneStr);
+            this.logger.verbose(`createOrUpdateUserTimezone() result: ${result}`);
             const timezoneFormatted = SekaiVirtualLiveBot.timezoneStrFormat(timezoneStr);
             this.logger.info(`Set timezone ${timezoneStr} for ${interaction.user.id} (${timezoneFormatted})`);
             await interaction.editReply({
