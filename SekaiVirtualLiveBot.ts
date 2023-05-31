@@ -967,6 +967,7 @@ export class SekaiVirtualLiveBot extends AbstractReminderBot<VirtualLiveReminder
         return "Reminder for Virtual Live show:\n" +
             `${vlive.name}\n\n` +
             `Virtual Live starts at: ${SekaiVirtualLiveBot.createDiscordTimestamp(schedule.startAt, TimestampStyles.LongDateTime)}\n\n` +
+            `Virtual Live ends at: ${SekaiVirtualLiveBot.createDiscordTimestamp(schedule.endAt, TimestampStyles.LongDateTime)}\n\n` +
             `Region: ${data.region}`;
     }
 
