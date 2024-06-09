@@ -1,0 +1,21 @@
+# Copy this file as "config.yaml", and fill in the values as appropriate.
+# ------------------------------------------------------------------------------
+
+# How often to check for new virtual lives in hours
+# 0 means disabled
+refreshIntervalMinutes: 60
+
+agenda:
+  maxConcurrency: 20 # how many Agenda jobs can run at once
+  defaultConcurrency: 15 # how many number of a specific job can run at once
+
+# MongoDB connection string used by Agenda and vlive bot storage
+mongoDbUrl: ""
+
+# A dictionary of server region names to their respective virtual live data
+vliveDataSources:
+  English: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-en-diff/main/virtualLives.json"
+  Japanese: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/main/virtualLives.json"
+  Korean: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-kr-diff/main/virtualLives.json"
+  Taiwanese: "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-tc-diff/main/virtualLives.json"
+
