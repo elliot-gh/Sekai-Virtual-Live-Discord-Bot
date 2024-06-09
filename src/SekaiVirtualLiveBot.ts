@@ -67,7 +67,7 @@ export class SekaiVirtualLiveBot extends BaseBotWithConfig {
         super("SekaiVirtualLiveBot", import.meta);
 
         this.config = this.readYamlConfig<SekaiVirtualLiveConfig>("config.yaml");
-        this.intents = [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages];
+        this.intents = [GatewayIntentBits.Guilds];
 
         const choices: APIApplicationCommandOptionChoice<string>[] = [];
         for (const region in this.config.vliveDataSources) {
