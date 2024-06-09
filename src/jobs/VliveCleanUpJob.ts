@@ -1,10 +1,12 @@
 import Agenda, { Job } from "agenda";
 import { Client } from "discord.js";
 import { createLogger } from "../../../../utils/Logger.js";
-import { SekaiVirtualLiveConfig } from "../VirtualLiveShared.js";
+import { SekaiVirtualLiveConfig } from "../VirtualLiveConfig.js";
 import { VirtualLiveCache } from "../VirtualLiveCache.js";
 import { MongoVirtualLive } from "../database/MongoVirtualLive.js";
 import { VliveReminderJob } from "./VliveReminderJob.js";
+import { MongoUserVliveReminders } from "../database/MongoUserVliveReminders.js";
+import { subtractMinutesFromDate } from "../utils/DateUtils.js";
 
 export class VliveCleanUpJob {
     private static readonly JOB_NAME = "VliveCleanUpJob";
@@ -35,6 +37,7 @@ export class VliveCleanUpJob {
         }
 
         await this.agenda.every(`${this.CLEANUP_INTERVAL_MINUTES} minutes`, this.JOB_NAME);
+        await this.agenda.now(this.JOB_NAME, {});
     }
 
     static async handleJob(job: Job): Promise<void> {
@@ -44,25 +47,26 @@ export class VliveCleanUpJob {
 
         try {
             this.logger.info("Running VliveCleanUpJob.");
-            const deleted = await MongoVirtualLive.deleteOlderVirtualLives();
-            this.logger.info(`Deleted ${deleted} old Virtual Live data.`);
+            const deletedVlives = await MongoVirtualLive.deleteOlderVirtualLives();
+            for (const deleted of deletedVlives) {
+                this.logger.info(`Deleted old Virtual Live: ${deleted.name}`);
+                const userVliveDeleteResult = await MongoUserVliveReminders.deleteUserVliveReminder(deleted.region, deleted.id);
+                this.logger.info(`Deleted ${userVliveDeleteResult} user vlive reminders for ${deleted.name}`);
+            }
+
             await VirtualLiveCache.syncCacheWithDatabase();
 
+            const deleteTime = subtractMinutesFromDate(new Date(), this.OLD_JOB_THRESHOLD_MINUTES);
             const reminderJobs = await this.agenda.jobs({
-                name: VliveReminderJob.JOB_NAME
+                name: VliveReminderJob.JOB_NAME,
+                nextRunAt: { $lt: deleteTime }
             });
 
-            const currentTime = new Date().getTime();
+            this.logger.info(`Found ${reminderJobs.length} potential reminder jobs to clean up.`);
             for (const job of reminderJobs) {
                 if (job.isRunning() || job.attrs.nextRunAt !== undefined || job.attrs.lastRunAt === undefined) {
                     continue;
                 } else if (job.attrs.failedAt !== undefined) {
-                    continue;
-                }
-
-                // skip if job isn't old enough yet
-                const diff = currentTime - job.attrs.lastRunAt.getTime();
-                if (diff < this.OLD_JOB_THRESHOLD_MINUTES * 60000) {
                     continue;
                 }
 

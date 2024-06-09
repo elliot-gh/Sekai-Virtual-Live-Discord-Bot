@@ -1,18 +1,14 @@
 import Agenda, { Job } from "agenda";
-import { Client, EmbedBuilder, Guild, RoleCreateOptions, TimestampStyles } from "discord.js";
+import { Client, EmbedBuilder, Guild, TimestampStyles } from "discord.js";
 import { createLogger } from "../../../../utils/Logger.js";
-import { GuildSettingsDocument, MongoGuildSettings } from "../database/MongoGuildSettings.js";
+import { GuildRegionSettings } from "../database/GuildSettingsTypes.js";
+import { MongoGuildSettings } from "../database/MongoGuildSettings.js";
 import { createDiscordTimestamp } from "../utils/DateUtils.js";
-import { buildChannelErrorEmbed } from "../utils/DiscordUtils.js";
-import { NewVliveData, VirtualLiveCache } from "../VirtualLiveCache.js";
-import { GuildRegionSettings, NO_CHANNEL_STR, SekaiVirtualLiveConfig, VirtualLive } from "../VirtualLiveShared.js";
+import { BIG_GUILD_MEMBERCOUNT, buildErrorEmbed } from "../utils/DiscordUtils.js";
+import { VirtualLiveCache } from "../VirtualLiveCache.js";
+import { SekaiVirtualLiveConfig } from "../VirtualLiveConfig.js";
+import { RegionString, VirtualLive } from "../VirtualLiveShared.js";
 import { VliveReminderJob } from "./VliveReminderJob.js";
-
-type GuildAndSettings = {
-    guild: Guild,
-    settings: GuildSettingsDocument
-};
-
 /**
  * Job to refresh the virtual live data.
  */
@@ -57,40 +53,48 @@ export class VliveRefreshJob {
 
             this.logger.info("New Virtual Live data found.");
             await VliveReminderJob.scheduleNewJobs(newVliveResult);
-            const guilds = await MongoGuildSettings.getActiveGuildSettings();
-            const guildsArr: GuildAndSettings[] = [];
-            for (let guildSettings of guilds) {
-                guildSettings = await MongoGuildSettings.validateAndFixGuildSettings(this.logger, guildSettings.guildId, guildSettings);
-                const discordGuild = this.discordClient.guilds.cache.get(guildSettings.guildId);
-                if (discordGuild === undefined) {
-                    this.logger.error(`Guild not found for id ${guildSettings.guildId}.`);
+
+            for (const [region, vliveArr] of newVliveResult.regionsToNewVlives) {
+                if (vliveArr.length === 0) {
                     continue;
                 }
 
-                const guildAndSettings: GuildAndSettings = {
-                    guild: discordGuild,
-                    settings: guildSettings
-                };
+                const guildSettings = await MongoGuildSettings.getGuildsForNewShowsMessage(region);
+                for (const guildSetting of guildSettings) {
+                    if (!guildSetting.isGuildActive) {
+                        continue;
+                    }
 
-                guildsArr.push(guildAndSettings);
-            }
+                    const guildRegionSettings = guildSetting.regionSettings[region];
+                    if (guildRegionSettings === undefined || guildRegionSettings.channelId === undefined || !guildRegionSettings.newShowsMessage) {
+                        continue;
+                    }
 
-            const promiseArr: Promise<unknown>[] = [];
-            promiseArr.push(this.createRoles(newVliveResult, guildsArr));
-            promiseArr.push(this.sendMessages(newVliveResult, guildsArr));
+                    const discordGuild = this.discordClient.guilds.cache.get(guildSetting.guildId);
+                    if (discordGuild === undefined) {
+                        this.logger.error(`Guild not found for id ${guildSetting.guildId}.`);
+                        continue;
+                    }
 
-            let errStr = "";
-            const results = await Promise.allSettled(promiseArr);
-            this.logger.info(`Guild operations done: ${results}`);
-            for (const result of results) {
-                if (result.status === "rejected") {
-                    this.logger.error(`Promise rejected in guild operation: ${result.reason}`);
-                    errStr += `${result.reason}\n`;
+                    const discordChannel = await discordGuild.channels.fetch(guildRegionSettings.channelId);
+                    if (discordChannel === null || !discordChannel.isTextBased()) {
+                        this.logger.error(`Channel not found for id ${guildRegionSettings.channelId}.`);
+                        const systemChannel = discordGuild.systemChannel;
+                        if (systemChannel !== null) {
+                            const errEmbed = buildErrorEmbed(
+                                "Channel error",
+                                `I tried to send a message but the channel <#${guildRegionSettings.channelId}> (ID \`${guildRegionSettings.channelId}\`) was not found or isn't a text channel.\n\nPlease reconfigure the bot or make sure the bot has access to the channel.`);
+                            await systemChannel.send({ embeds: [errEmbed] });
+                            continue;
+                        }
+
+                        this.logger.error("System channel not found.");
+                        continue;
+                    }
+
+                    const embed = this.buildNewVliveEmbed(region, vliveArr, guildRegionSettings, discordGuild);
+                    await discordChannel.send({ embeds: [embed] });
                 }
-            }
-
-            if (errStr !== "") {
-                throw new Error(errStr);
             }
         } catch (error) {
             this.logger.error(`Error in VliveRefreshJob: ${error}`);
@@ -99,127 +103,28 @@ export class VliveRefreshJob {
         }
     }
 
-    private static async sendMessages(newData: NewVliveData, guildsAndSettings: GuildAndSettings[]): Promise<void> {
-        for (const guildAndSetting of guildsAndSettings) {
-            const guild = guildAndSetting.guild;
-            const settings = guildAndSetting.settings;
-            this.logger.info(`Sending messages for guild ${guild.id}.`);
-
-            for (const [region, newVlives] of newData.regionsToNewVlives) {
-                if (newVlives.length === 0) {
-                    continue;
-                }
-
-                const guildSettingsForRegion = settings.guildSettings.regions.find((r) => r.region === region);
-                if (guildSettingsForRegion === undefined || guildSettingsForRegion.channelId === NO_CHANNEL_STR) {
-                    continue;
-                }
-
-                this.logger.info(`Sending message for region ${region} with ${newVlives.length} new vlives.`);
-                const channel = guild.channels.cache.get(guildSettingsForRegion.channelId);
-                if (channel === undefined || !channel.isTextBased()) {
-                    this.logger.error(`Channel error ${channel?.id} for guild ${guild.id} and region ${region}.`);
-                    const defaultChannel = guild.systemChannel;
-                    if (defaultChannel === null) {
-                        this.logger.error(`Default channel not found for guild ${guild.id}.`);
-                        continue;
-                    }
-
-                    await defaultChannel.send({ embeds: [buildChannelErrorEmbed(guildSettingsForRegion.channelId)] });
-                    continue;
-                }
-
-                await channel.send({ embeds: [VliveRefreshJob.buildNewVliveEmbed(newVlives, guildSettingsForRegion)] });
-            }
-
-            this.logger.info(`Messages sent for guild ${guild.id}.`);
-        }
-    }
-
-    private static async createRoles(newData: NewVliveData, guildsAndSettings: GuildAndSettings[]): Promise<void> {
-        for (const guildAndSetting of guildsAndSettings) {
-            const guild = guildAndSetting.guild;
-            const settings = guildAndSetting.settings;
-            this.logger.info(`Creating roles for guild ${guild.id}.`);
-
-            for (const [region, newVlives] of newData.regionsToNewVlives) {
-                if (newVlives.length === 0) {
-                    continue;
-                }
-
-                const guildSettingsForRegion = settings.guildSettings.regions.find((r) => r.region === region);
-                if (guildSettingsForRegion === undefined || guildSettingsForRegion.channelId === NO_CHANNEL_STR) {
-                    continue;
-                }
-
-                for (const vlive of newVlives) {
-                    const roleOptions: RoleCreateOptions = {
-                        name: `Reminder-${region}-${vlive.id}`,
-                        hoist: false,
-                        position: Number.MAX_SAFE_INTEGER,
-                        permissions: undefined,
-                        mentionable: false
-                    };
-
-                    const role = await guild.roles.create(roleOptions);
-                    this.logger.info(`Created role ${role.id} for region ${region} and vlive ${vlive.id}.`);
-
-                    const usersToAdd = await MongoGuildSettings.getUserIdsWithAutoReminders(guild.id, region);
-                    if (usersToAdd.length === 0) {
-                        continue;
-                    }
-
-                    this.logger.info(`Adding ${usersToAdd.length} users to role ${role.id}.`);
-                    const memberManager = guild.members;
-                    for (const userId of usersToAdd) {
-                        await memberManager.addRole({
-                            user: userId,
-                            role: role,
-                        });
-                    }
-
-                    const existingRoleSettings = settings.vliveRoles.find((r) => r.region === region && r.vliveId === vlive.id);
-                    if (existingRoleSettings !== undefined) {
-                        this.logger.info(`Role settings already exist for region ${region} and vlive ${vlive.id}.`);
-                        existingRoleSettings.roleId = role.id;
-                        continue;
-                    } else {
-                        settings.vliveRoles.push({
-                            region: region,
-                            vliveId: vlive.id,
-                            roleId: role.id
-                        });
-                    }
-
-                    await settings.save();
-                }
-            }
-
-            this.logger.info(`Roles created for guild ${guild.id}.`);
-        }
-    }
-
-    private static buildNewVliveEmbed(vlives: VirtualLive[], regionSettings: GuildRegionSettings): EmbedBuilder {
-        let description = "Want to enable auto reminders? Please look at `/vlive reminders auto`.";
-        if (regionSettings.channelId === NO_CHANNEL_STR) {
-            description += " **Reminders are disabled until moderators configure the bot. Please look at `/config-vlive reminders`.**";
+    private static buildNewVliveEmbed(region: RegionString, vlives: VirtualLive[], regionSettings: GuildRegionSettings, guild: Guild): EmbedBuilder {
+        let description = "";
+        if (guild.memberCount <= BIG_GUILD_MEMBERCOUNT) {
+            description = "Want to enable auto reminders? Please look at `/vlive reminder auto`.\n\n";
         }
 
-        description += "\n\n";
+        if (regionSettings.channelId === undefined) {
+            description += "**Reminders are disabled until moderators configure the bot. Please look at `/config-vlive channel`.**\n\n";
+        }
 
-        const truncatedString = "*Too many shows were found to list. Please look at `/vlive schedule` to see all shows.*";
+        const truncatedString = "*Too many shows were found to list. Please look at `/vlive schedule` to see all shows.*\n\n";
         const maxEmbedIncludingTruncated = VliveRefreshJob.MAX_EMBED_DESC - truncatedString.length;
 
-        let currentLength = description.length;
         for (const vlive of vlives) {
             const vliveDesc = `${vlive.name} - ${createDiscordTimestamp(vlive.startAt, TimestampStyles.ShortDateTime)}\n`;
 
-            if (currentLength + vliveDesc.length > maxEmbedIncludingTruncated) {
+            if (description.length + vliveDesc.length > maxEmbedIncludingTruncated) {
                 description += truncatedString;
                 break;
             }
 
-            currentLength += vliveDesc.length;
+            description += vliveDesc;
         }
 
         return new EmbedBuilder()
@@ -227,8 +132,8 @@ export class VliveRefreshJob {
             .setDescription(description)
             .addFields([{
                 name: "Region",
-                value: regionSettings.region
+                value: region
             }])
-            .setColor(0x33CCBA);
+            .setColor(0x33AAEE);
     }
 }

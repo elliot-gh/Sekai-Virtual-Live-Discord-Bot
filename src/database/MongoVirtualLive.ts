@@ -1,11 +1,9 @@
 import mongoose, { Connection, Model } from "mongoose";
-const { Schema } = mongoose;
-import { RegionString, isOfTypeRegionString } from "../VirtualLiveShared.js";
-import { SekaiVirtualLiveConfig } from "../VirtualLiveShared.js";
-import { VirtualLiveSchedule } from "../VirtualLiveShared.js";
-import { VirtualLive } from "../VirtualLiveShared.js";
 import { createLogger } from "../../../../utils/Logger.js";
-import { addMinutesToDate } from "../utils/DateUtils.js";
+import { subtractMinutesFromDate } from "../utils/DateUtils.js";
+import { SekaiVirtualLiveConfig } from "../VirtualLiveConfig.js";
+import { RegionString, VirtualLive, VirtualLiveSchedule, isOfTypeRegionString } from "../VirtualLiveShared.js";
+const { Schema } = mongoose;
 
 /**
  * A collection of vlive Mongoose Models, indexed by region string.
@@ -32,15 +30,17 @@ export class MongoVirtualLive {
         virtualLiveId: { type: String, required: true },
         seq: { type: Number, required: true },
         startAt: { type: Date, required: true },
-        endAt: { type: Date, required: true }
+        endAt: { type: Date, required: true },
+        region: { type: String, required: true }
     });
 
     private static readonly virtualLiveSchema = new Schema<VirtualLive>({
         id: { type: String, required: true, unique: true },
         virtualLiveType: { type: String, required: true },
         name: { type: String, required: true },
-        startAt: {  type: Date, required: true },
+        startAt: { type: Date, required: true },
         endAt: { type: Date, required: true },
+        region: { type: String, required: true },
         virtualLiveSchedules: { type: [MongoVirtualLive.virtualLiveScheduleSchema], required: true },
     });
 
@@ -145,28 +145,35 @@ export class MongoVirtualLive {
 
     /**
      * Deletes Virtual Lives before the current date (minus some time as a buffer).
-     * @returns A promise that resolves to the number of deleted documents.
+     * @returns A promise that resolves to an array of deleted documents.
      */
-    static async deleteOlderVirtualLives(): Promise<number> {
+    static async deleteOlderVirtualLives(): Promise<VirtualLive[]> {
         if (!this.ready) {
             throw new Error("MongoDB connection not ready.");
         }
 
-        const deleteTime = addMinutesToDate(new Date(), this.MINUTES_AFTER_VLIVE_END_DELETE);
-        let numDeleted = 0;
+        const deleteTime = subtractMinutesFromDate(new Date(), this.MINUTES_AFTER_VLIVE_END_DELETE);
+        const deleted: VirtualLive[] = [];
         for (const region in this.regionToModel) {
             if (!isOfTypeRegionString(region)) {
                 throw new Error(`Invalid region string in config: ${region}`);
             }
 
-            const deleteResult = await this.regionToModel[region]!
-                .deleteMany({ endAt: { $lt: deleteTime } })
+            const findResult = await this.regionToModel[region]!
+                .find({ endAt: { $lt: deleteTime } })
                 .exec();
-            numDeleted += deleteResult.deletedCount;
-            this.logger.info(`Deleted ${numDeleted} virtual lives in region ${region}`);
+            deleted.push(...findResult);
+
+            if (findResult.length > 0) {
+                const deleteResult = await this.regionToModel[region]!
+                    .deleteMany({ endAt: { $lt: deleteTime } })
+                    .exec();
+
+                this.logger.info(`Deleted ${deleteResult.deletedCount} virtual lives in region ${region}`);
+            }
         }
 
-        return numDeleted;
+        return deleted;
     }
 
     /**

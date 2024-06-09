@@ -1,14 +1,14 @@
 import Agenda from "agenda";
 import { Client } from "discord.js";
 import { createLogger } from "../../../../utils/Logger.js";
-import { SekaiVirtualLiveConfig } from "../VirtualLiveShared.js";
+import { SekaiVirtualLiveConfig } from "../VirtualLiveConfig.js";
 import { VliveRefreshJob } from "./VliveRefreshJob.js";
 import { VliveReminderJob } from "./VliveReminderJob.js";
 import { VliveCleanUpJob } from "./VliveCleanUpJob.js";
 
 export class AgendaSetup {
     private static readonly AGENDA_COLLECTION = "vliveBotAgenda";
-    private static readonly logger = createLogger("JobProcessor");
+    private static readonly logger = createLogger("AgendaSetup");
 
     private static ready: boolean = false;
     private static config: SekaiVirtualLiveConfig;

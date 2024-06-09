@@ -1,6 +1,6 @@
 import mongoose, { Connection } from "mongoose";
 import { createLogger } from "../../../../utils/Logger.js";
-import { SekaiVirtualLiveConfig } from "../VirtualLiveShared.js";
+import { SekaiVirtualLiveConfig } from "../VirtualLiveConfig.js";
 
 /**
  * Singleton responsible for creating a connection to MongoDB to be used by this bot.

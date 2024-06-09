@@ -1,8 +1,9 @@
 /**
  * Supported region strings.
+ * MAKE SURE TO ALSO UPDATE SCHEMAS IF UPDATING THIS
  */
 export type RegionString = "English" | "Japanese" | "Korean" | "Taiwanese";
-
+export const RegionStringArray: ReadonlyArray<RegionString> = ["English", "Japanese", "Korean", "Taiwanese"];
 const regionStringDict: { [region: string]: boolean } = {
     "English": true,
     "Japanese": true,
@@ -18,21 +19,6 @@ const regionStringDict: { [region: string]: boolean } = {
 export function isOfTypeRegionString(val: string): val is RegionString {
     return regionStringDict[val] !== undefined;
 }
-
-/**
- * config.yaml
- */
-export type SekaiVirtualLiveConfig = {
-    refreshIntervalMinutes: number;
-    mongoDbUrl: string;
-    agenda: {
-        maxConcurrency: number;
-        defaultConcurrency: number;
-    };
-    vliveDataSources: {
-        [region in RegionString]?: string;
-    };
-};
 
 /**
  * A Virtual Live show.
@@ -58,44 +44,3 @@ export interface VirtualLiveSchedule {
     endAt: Date;
     region: RegionString;
 }
-
-export type GuildSettings = {
-    guildId: string;
-    isGuildActive: boolean;
-    guildSettings: GuildSettingsSettings;
-    vliveRoles: GuildVliveRoles[];
-    userSettings: GuildUserSettings[];
-};
-
-export type GuildSettingsSettings = {
-    regions: GuildRegionSettings[]
-};
-
-export type GuildRegionSettings = {
-    region: RegionString,
-    channelId: string,
-    newShowsMessage: boolean
-}
-
-export type GuildVliveUser = {
-    userId: string,
-    hasRole: boolean
-}
-
-export type GuildVliveRoles = {
-    region: string,
-    vliveId: string,
-    roleId: string
-}
-
-export type GuildUserSettings = {
-    userId: string,
-    autoReminders: UserAutoReminderSettings[]
-};
-
-export type UserAutoReminderSettings = {
-    region: RegionString,
-    enabled: boolean
-}
-
-export const NO_CHANNEL_STR = "NULL";

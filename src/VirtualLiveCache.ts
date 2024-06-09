@@ -2,7 +2,8 @@ import axios from "axios";
 import { Logger } from "winston";
 import { createLogger } from "../../../utils/Logger.js";
 import { MongoVirtualLive } from "./database/MongoVirtualLive.js";
-import { RegionString, SekaiVirtualLiveConfig, VirtualLive, VirtualLiveSchedule, isOfTypeRegionString } from "./VirtualLiveShared.js";
+import { RegionString, VirtualLive, VirtualLiveSchedule, isOfTypeRegionString } from "./VirtualLiveShared.js";
+import { SekaiVirtualLiveConfig } from "./VirtualLiveConfig.js";
 import uFuzzy, { IntraMode } from "@leeoniya/ufuzzy";
 
 type IdToVlive = {
@@ -37,14 +38,16 @@ type RegionToUrls = {
     [region in RegionString]?: string
 }
 
+export type RegionToNewVlives = Map<RegionString, VirtualLive[]>;
+
 export type NewVliveData = {
-    newFound: boolean,
-    regionsToNewVlives: Map<RegionString, VirtualLive[]>
+    newFound: boolean;
+    regionsToNewVlives: RegionToNewVlives
 };
 
 export class VirtualLiveCache {
     private static readonly logger: Logger = createLogger("VirtualLiveCache");
-    private static readonly DISCORD_MAX_AUTOCOMPLETE = 25;
+    private static readonly DISCORD_MAX_AUTOCOMPLETE = 20;
 
     private static alreadyInit: boolean;
     private static regionToUrls: RegionToUrls;
@@ -55,7 +58,7 @@ export class VirtualLiveCache {
     private static vliveSearch: VliveSearch;
     private static fuzzy: uFuzzy;
 
-    static init(config: SekaiVirtualLiveConfig): void {
+    static async init(config: SekaiVirtualLiveConfig): Promise<void> {
         if (this.alreadyInit) {
             return;
         }
@@ -85,6 +88,7 @@ export class VirtualLiveCache {
         }
 
         this.alreadyInit = true;
+        await this.syncCacheWithDatabase();
     }
 
     static getAllVlives(region: RegionString): VirtualLive[] | null {
@@ -94,7 +98,17 @@ export class VirtualLiveCache {
             return null;
         }
 
-        return this.allVlives[region]!;
+        const activeVlives: VirtualLive[] = [];
+        const currentDate = new Date();
+        for (const vlive of this.allVlives[region]!) {
+            if (vlive.endAt < currentDate) {
+                continue;
+            }
+
+            activeVlives.push(vlive);
+        }
+
+        return activeVlives;
     }
 
     static getVliveById(region: RegionString, vliveId: string): VirtualLive | null {
@@ -105,14 +119,6 @@ export class VirtualLiveCache {
         }
 
         return this.idToVlives[region]![vliveId];
-    }
-
-    static getAllSchedules(region: RegionString, vliveId: string): VirtualLiveSchedule[] | null {
-        if (this.getVliveById(region, vliveId) === null || this.allSchedules[region]![vliveId].length === 0) {
-            return null;
-        }
-
-        return this.allSchedules[region]![vliveId];
     }
 
     static getScheduleById(region: RegionString, vliveId: string, scheduleId: string): VirtualLiveSchedule | null {
@@ -126,6 +132,10 @@ export class VirtualLiveCache {
     static searchVlivesByName(region: RegionString, query: string): string[] {
         if (this.allVlives[region] === undefined) {
             throw new Error(`Region ${region} not found in cache`);
+        }
+
+        if (query.trim() === "") {
+            return this.vliveSearch[region]!.slice(0, this.DISCORD_MAX_AUTOCOMPLETE);
         }
 
         const haystack = this.vliveSearch[region]!;
@@ -142,21 +152,11 @@ export class VirtualLiveCache {
             results.push(haystack[info.idx[order[index]]]);
         }
 
-        return results;
+        return results.slice(0, this.DISCORD_MAX_AUTOCOMPLETE);
     }
 
     static serializeVliveToSearchString(vlive: VirtualLive): string {
         return `${vlive.id} | ${vlive.name}`;
-    }
-
-    static getVliveFromSearchString(region: RegionString, searchString: string): VirtualLive | null {
-        const split = searchString.split(" | ");
-        if (split.length !== 2) {
-            return null;
-        }
-
-        const vliveId = split[0];
-        return this.getVliveById(region, vliveId);
     }
 
     static deserializeVliveIdFromSearchString(searchString: string): string {
@@ -170,7 +170,7 @@ export class VirtualLiveCache {
      */
     static async refreshCacheAndDatabase(): Promise<NewVliveData> {
         const currentDate = new Date();
-        this.logger.info(`Started refreshCache() at ${currentDate}`);
+        this.logger.info(`Started refreshCache() at ${currentDate.toLocaleString()}`);
 
         const newVlivesInRegion: NewVliveData = {
             newFound: false,
