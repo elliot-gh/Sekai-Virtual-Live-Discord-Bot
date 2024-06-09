@@ -27,6 +27,7 @@ export class VliveReminderJob {
 
     private static readonly MINUTES_BEFORE_REMINDER = 5;
     private static readonly MAX_USERS_PER_REMINDER = 50;
+    private static readonly MAX_TITLE_LENGTH = 256;
 
     private static readonly logger = createLogger("ReminderJob");
     private static agenda: Agenda;
@@ -243,24 +244,27 @@ export class VliveReminderJob {
             endAt = data.fallback.endAt;
         }
 
-        let description = `Reminder for ${name}.`;
+        let description = "";
         if (isLast) {
-            description += "\n\n**This is the last show of this Virtual Live.**";
+            description += "**This is the last show of this Virtual Live.**\n";
         }
 
         if (!vliveFound) {
-            description += "\n\n*Virtual Live data was not found, so using possibly stale data.*";
+            description += "*Virtual Live data was not found, so using possibly stale data.*";
         }
 
         const embed = new EmbedBuilder()
-            .setTitle("Virtual Live Reminder")
-            .setDescription(description)
+            .setTitle(name.substring(0, this.MAX_TITLE_LENGTH))
             .addFields(
                 { name: "Starts at", value: createDiscordTimestamp(startAt, TimestampStyles.LongDateTime), inline: false },
                 { name: "Ends at", value: createDiscordTimestamp(endAt, TimestampStyles.LongDateTime), inline: false },
                 { name: "Region", value: data.region, inline: false}
             )
             .setColor(0x33CCBA);
+
+        if (description !== "") {
+            embed.setDescription(description);
+        }
 
         return embed;
     }
