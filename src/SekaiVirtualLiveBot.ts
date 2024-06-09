@@ -618,7 +618,7 @@ export class SekaiVirtualLiveBot extends BaseBotWithConfig {
                 } else {
                     embed = new EmbedBuilder()
                         .setTitle("Warning")
-                        .setDescription(`This server is too large for pinged reminders. This server will still get non-pinged reminders in <#${guildSettings.regionSettings[region]!.channelId}> for the ${region} region..`)
+                        .setDescription(`This server is too large for pinged reminders. This server will still get non-pinged reminders in <#${guildSettings.regionSettings[region]!.channelId}> for the ${region} region.`)
                         .setColor(SekaiVirtualLiveBot.WARN_EMBED_COLOR);
                 }
             } else {
@@ -630,7 +630,7 @@ export class SekaiVirtualLiveBot extends BaseBotWithConfig {
                 } else {
                     embed = new EmbedBuilder()
                         .setTitle("Success")
-                        .setDescription(`You will get automatically pinged for all shows in <#${guildSettings.regionSettings[region]!.channelId}> for the ${region} region..`)
+                        .setDescription(`You will get automatically pinged for all shows in <#${guildSettings.regionSettings[region]!.channelId}> for the ${region} region.`)
                         .setColor(SekaiVirtualLiveBot.SUCCESS_EMBED_COLOR);
                 }
             }
