@@ -37,7 +37,6 @@ export class VliveCleanUpJob {
         }
 
         await this.agenda.every(`${this.CLEANUP_INTERVAL_MINUTES} minutes`, this.JOB_NAME);
-        await this.agenda.now(this.JOB_NAME, {});
     }
 
     static async handleJob(job: Job): Promise<void> {
