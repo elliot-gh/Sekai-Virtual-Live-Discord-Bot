@@ -104,6 +104,10 @@ export class VliveReminderJob {
                 return;
             }
 
+            // agenda stores our ids as strings
+            data.vliveId = (data.vliveId as unknown as number).toString();
+            data.scheduleId = (data.scheduleId as unknown as number).toString();
+
             this.logger.info(`Sending reminders for vlive ${data.vliveId} in ${data.region} at ${data.when.toLocaleString()}`);
             const guilds = await MongoGuildSettings.getGuildsForReminders(data.region);
             for (let guildSettings of guilds) {
