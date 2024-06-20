@@ -163,8 +163,11 @@ export class VliveReminderJob {
                     const singleReminderUsers = await MongoUserVliveReminders.getUserVliveReminders(guildSettings.guildId, data.region, data.vliveId);
                     if (singleReminderUsers !== null) {
                         for (const user of singleReminderUsers.users) {
-                            if (userIds.has(user.userId) && user.dismissed) {
-                                userIds.delete(user.userId);
+                            if (user.dismissed) {
+                                if (userIds.has(user.userId)) {
+                                    userIds.delete(user.userId);
+                                }
+
                                 continue;
                             }
 
