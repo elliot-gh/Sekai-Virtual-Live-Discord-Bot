@@ -166,6 +166,7 @@ export class VliveReminderJob {
                             if (user.dismissed) {
                                 if (userIds.has(user.userId)) {
                                     userIds.delete(user.userId);
+                                    embed.setColor(0xE24740);
                                 }
 
                                 continue;
