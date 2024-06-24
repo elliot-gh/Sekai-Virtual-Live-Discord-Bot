@@ -166,7 +166,6 @@ export class VliveReminderJob {
                             if (user.dismissed) {
                                 if (userIds.has(user.userId)) {
                                     userIds.delete(user.userId);
-                                    embed.setColor(0xE24740);
                                 }
 
                                 continue;
@@ -252,9 +251,11 @@ export class VliveReminderJob {
             endAt = data.fallback.endAt;
         }
 
+        let color = 0x33CCBA;
         let description = "";
         if (isLast) {
             description += "**This is the last show of this Virtual Live.**\n";
+            color = 0xE24740;
         }
 
         if (!vliveFound) {
@@ -268,7 +269,7 @@ export class VliveReminderJob {
                 { name: "Ends at", value: createDiscordTimestamp(endAt, TimestampStyles.LongDateTime), inline: false },
                 { name: "Region", value: data.region, inline: false}
             )
-            .setColor(0x33CCBA);
+            .setColor(color);
 
         if (description !== "") {
             embed.setDescription(description);
