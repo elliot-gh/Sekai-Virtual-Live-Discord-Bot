@@ -150,56 +150,51 @@ export class VliveReminderJob {
                     .setLabel("Add Reminder")
                     .setStyle(ButtonStyle.Primary);
 
-                if (discordGuild.memberCount > this.MAX_USERS_PER_REMINDER) {
-                    this.logger.info(`Guild ${discordGuild.id} has more than ${this.MAX_USERS_PER_REMINDER} members, not pinging`);
-                    messages.push({ embeds: [embed] });
+                const userIds = new Set<string>();
+                const autoReminderUsers = await MongoGuildUserSettings.getAllEnabledAutoReminderUsers(guildSettings.guildId, data.region);
+                for (const userId of autoReminderUsers) {
+                    userIds.add(userId);
+                }
+
+                const singleReminderUsers = await MongoUserVliveReminders.getUserVliveReminders(guildSettings.guildId, data.region, data.vliveId);
+                if (singleReminderUsers !== null) {
+                    for (const user of singleReminderUsers.users) {
+                        if (user.dismissed) {
+                            if (userIds.has(user.userId)) {
+                                userIds.delete(user.userId);
+                            }
+
+                            continue;
+                        }
+
+                        userIds.add(user.userId);
+                    }
+                }
+
+                if (userIds.size === 0) {
+                    messages.push({ embeds: [embed], components: [
+                        new ActionRowBuilder<ButtonBuilder>().addComponents(btnOptIn)
+                    ]});
                 } else {
-                    const userIds = new Set<string>();
-                    const autoReminderUsers = await MongoGuildUserSettings.getAllEnabledAutoReminderUsers(guildSettings.guildId, data.region);
-                    for (const userId of autoReminderUsers) {
-                        userIds.add(userId);
-                    }
+                    let currentMessage = "";
+                    let currentMentions = 0;
+                    for (const userId of userIds) {
+                        currentMessage += `<@${userId}> `;
+                        currentMentions++;
 
-                    const singleReminderUsers = await MongoUserVliveReminders.getUserVliveReminders(guildSettings.guildId, data.region, data.vliveId);
-                    if (singleReminderUsers !== null) {
-                        for (const user of singleReminderUsers.users) {
-                            if (user.dismissed) {
-                                if (userIds.has(user.userId)) {
-                                    userIds.delete(user.userId);
-                                }
-
-                                continue;
-                            }
-
-                            userIds.add(user.userId);
-                        }
-                    }
-
-                    if (userIds.size === 0) {
-                        messages.push({ embeds: [embed], components: [
-                            new ActionRowBuilder<ButtonBuilder>().addComponents(btnOptIn)
-                        ]});
-                    } else {
-                        let currentMessage = "";
-                        let currentMentions = 0;
-                        for (const userId of userIds) {
-                            currentMessage += `<@${userId}> `;
-                            currentMentions++;
-
-                            if (currentMentions >= this.MAX_USERS_PER_REMINDER) {
-                                messages.push({ content: currentMessage, embeds: [embed], components: [
-                                    new ActionRowBuilder<ButtonBuilder>().addComponents(btnDismiss, btnOptIn)
-                                ]});
-                                currentMessage = "";
-                                currentMentions = 0;
-                            }
-                        }
-
-                        if (currentMessage !== "") {
+                        if (currentMentions >= this.MAX_USERS_PER_REMINDER) {
                             messages.push({ content: currentMessage, embeds: [embed], components: [
                                 new ActionRowBuilder<ButtonBuilder>().addComponents(btnDismiss, btnOptIn)
                             ]});
+                            currentMessage = "";
+                            currentMentions = 0;
                         }
+                    }
+
+                    if (currentMessage !== "") {
+                        messages.push({ content: currentMessage, embeds: [embed], components: [
+                            new ActionRowBuilder<ButtonBuilder>().addComponents(btnDismiss, btnOptIn)
+                        ]});
                     }
                 }
 
